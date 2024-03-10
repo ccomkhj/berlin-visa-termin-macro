@@ -6,12 +6,12 @@ termin_bot:
 form_selections:
   nationality: "Korea, Republik"
   num_applicants: "eine Person"
-  living_with_family: "ja"
+  living_with_family: "ja" # "nein" for single
   family_nationality: "Korea, Republik"
 
 click_labels:
-  visa_case: "Aufenthaltstitel - beantragen"
-  application_reason: "Familiäre Gründe"
-  detail_reason: "Aufenthaltserlaubnis für Ehepartner und Kinder von Inhabern einer Blauen Karte EU (§§ 29-32)"
+  visa_case: "Aufenthaltstitel - beantragen" # "Aufenthaltstitel - verlängern"
+  application_reason: "Familiäre Gründe" # "Erwerbstätigkeit" "Studium und Ausbildung"
+  detail_reason: "Aufenthaltserlaubnis für Ehepartner und Kinder von Inhabern einer Blauen Karte EU (§§ 29-32)" # "Aufenthaltserlaubnis zum Studium (§ 16b)"
 
 slack_webhook_url: "https://hooks.slack.com/services/YOUR_CREDENTIAL"

@@ -238,7 +238,7 @@ class MacroTermin:
                 time.sleep(self.wait_time)
 
     def run_loop(self):
-        logging.info("Sound Test!")
+        logging.info("Sound Test! You will hear the same sound when it succeeds!")
         self._play_sound()
         idx = 0
         while True:
