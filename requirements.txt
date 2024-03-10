@@ -1,4 +1,4 @@
-webdriver_manager
+webdriver_manager==4.0.1
 selenium==4.6.0
 pygame
 pyyaml
