@@ -1,0 +1,4 @@
+webdriver_manager
+selenium==4.6.0
+pygame
+pyyaml
