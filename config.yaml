@@ -1,7 +1,0 @@
-berlin_bot:
-  wait_time: 15
-  sound_file: "alarm.wav"
-  error_message: "Für die gewählte Dienstleistung sind aktuell keine Termine frei! Bitte"
-
-slack:
-  webhook_url: "https://hooks.slack.com/services/YOUR_CODE"

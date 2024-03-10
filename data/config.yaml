@@ -1,0 +1,17 @@
+termin_bot:
+  wait_time: 15
+  sound_file: "data/alarm.wav"
+  error_message: "Für die gewählte Dienstleistung sind aktuell keine Termine frei! Bitte"
+
+form_selections:
+  nationality: "Korea, Republik"
+  num_applicants: "eine Person"
+  living_with_family: "ja"
+  family_nationality: "Korea, Republik"
+
+click_labels:
+  visa_case: "Aufenthaltstitel - beantragen"
+  application_reason: "Familiäre Gründe"
+  detail_reason: "Aufenthaltserlaubnis für Ehepartner und Kinder von Inhabern einer Blauen Karte EU (§§ 29-32)"
+
+slack_webhook_url: "https://hooks.slack.com/services/YOUR_CREDENTIAL"

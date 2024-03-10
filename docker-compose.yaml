@@ -1,0 +1,26 @@
+version: '3'
+services:
+  selenium:
+    image: selenium/standalone-chrome:latest
+    network_mode: host
+    shm_size: "2g"
+    environment:
+      - SE_NODE_MAX_SESSIONS=5
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_NODE_SESSION_TIMEOUT=120
+
+  macro-berlin-termin:
+    build: 
+      context: . # Set the context to the project root
+      dockerfile: ./docker/Dockerfile # Specify the relative path to the Dockerfile
+    depends_on:
+      - selenium
+    volumes:
+      - .:/usr/src/app
+      - /run/user/1000/pulse:/run/pulse:ro # Bind-mount the host's PulseAudio socket to the container
+    environment:
+      - PULSE_SERVER=unix:/run/pulse/native # Use the host PulseAudio server
+    devices:
+      - "/dev/snd:/dev/snd" # Grant access to sound devices
+  
+    network_mode: host

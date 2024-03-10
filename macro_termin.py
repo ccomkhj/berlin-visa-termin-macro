@@ -1,7 +1,12 @@
+"""
+Huijo Kim (ccomkhj@gmail.com)
+"""
+
 import logging
 import time
 import requests
 import yaml
+import sys
 
 from selenium.webdriver.chrome.service import Service
 from selenium import webdriver
@@ -13,12 +18,14 @@ import pygame
 
 
 # Load config
-def load_config(file_path="config.yaml"):
+def load_config(file_path="data/config.yaml"):
     with open(file_path, "r") as file:
         return yaml.safe_load(file)
 
 
 config = load_config()
+form_selections = config["form_selections"]
+click_labels = config["click_labels"]
 
 logging.basicConfig(
     format="%(asctime)s\t%(levelname)s\t%(message)s", level=logging.INFO
@@ -26,16 +33,22 @@ logging.basicConfig(
 
 
 class WebDriver:
-    def __init__(self, implicit_wait_time=20):
+    def __init__(self, mode="local", implicit_wait_time=20):
         self.implicit_wait_time = implicit_wait_time
+        self.mode = mode
 
     def __enter__(self):
         logging.info("Open browser")
         options = webdriver.ChromeOptions()
         options.add_argument("--disable-blink-features=AutomationControlled")
-        self.driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()), options=options
-        )
+        if self.mode == "local":
+            self.driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()), options=options
+            )
+        else:
+            self.driver = webdriver.Remote(
+                command_executor="http://localhost:4444/wd/hub", options=options
+            )
         self.driver.implicitly_wait(self.implicit_wait_time)
         self.driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
@@ -48,11 +61,19 @@ class WebDriver:
 
 
 class MacroTermin:
-    def __init__(self):
-        self.wait_time = config["berlin_bot"]["wait_time"]
-        self.sound_file = config["berlin_bot"]["sound_file"]
-        self.error_message = config["berlin_bot"]["error_message"]
-        self.slack_webhook_url = config["slack"]["webhook_url"]
+    def __init__(self, mode):
+        self.wait_time = config["termin_bot"]["wait_time"]
+        self.sound_file = config["termin_bot"]["sound_file"]
+        self.error_message = config["termin_bot"]["error_message"]
+        self.slack_webhook_url = config.get("slack_webhook_url")
+
+        if mode in ["local", "remote"]:
+            self.mode = mode
+        else:
+            logging.error(
+                f"Incorrect mode. Please select local or remote. current mode: {mode}"
+            )
+            raise ValueError
 
     def enter_start_page(self, driver):
         logging.info("Visit start page")
@@ -74,37 +95,71 @@ class MacroTermin:
         logging.info("Fill out form")
         # select Korea, Republik
         s = Select(driver.find_element(By.ID, "xi-sel-400"))
-        s.select_by_visible_text("Korea, Republik")
+        s.select_by_visible_text(form_selections["nationality"])
+        time.sleep(0.1)
         # eine person
         s = Select(driver.find_element(By.ID, "xi-sel-422"))
-        s.select_by_visible_text("eine Person")
+        s.select_by_visible_text(form_selections["num_applicants"])
+        time.sleep(0.1)
         # with family
         s = Select(driver.find_element(By.ID, "xi-sel-427"))
-        s.select_by_visible_text("ja")
-        # Select Korea, Republik
-        s = Select(driver.find_element(By.ID, "xi-sel-428"))
-        s.select_by_visible_text("Korea, Republik")
+        s.select_by_visible_text(form_selections["living_with_family"])
+        time.sleep(0.1)
+        if form_selections["living_with_family"].lower() == "ja":
+            s = Select(driver.find_element(By.ID, "xi-sel-428"))
+            s.select_by_visible_text(form_selections["family_nationality"])
         time.sleep(2)
 
-        # apply for residence title
-        driver.find_element(By.XPATH, '//*[@id="xi-div-30"]/div[1]/label/p').click()
-        time.sleep(1)
+        self.click_element_by_visible_text(driver, click_labels.get("visa_case"))
 
-        # click on family
-        driver.find_element(
-            By.XPATH, '//*[@id="inner-467-0-1"]/div/div[5]/label'
-        ).click()
-        time.sleep(1)
+        self.click_element_by_visible_text(
+            driver, click_labels.get("application_reason")
+        )
 
-        # rp for spouse
-        driver.find_element(
-            By.XPATH, '//*[@id="inner-467-0-1"]/div/div[6]/div/div[3]/label'
-        ).click()
-        time.sleep(2)
+        self.click_element_by_visible_text(
+            driver,
+            click_labels.get("detail_reason"),
+        )
+        time.sleep(5)
 
         # submit form
         driver.find_element(By.ID, "applicationForm:managedForm:proceed").click()
-        time.sleep(4)
+        time.sleep(5)
+
+    def click_element_by_visible_text(self, driver, visible_text):
+        try:
+            # First, try to find a label that directly contains the visible text
+            elements = driver.find_elements(
+                By.XPATH, f"//label[contains(., '{visible_text}')]"
+            )
+            if elements:
+                for element in elements:
+                    if element.text.strip() == visible_text:
+                        element.click()
+                        logging.info(
+                            f"Clicked on the label with text '{visible_text}' successfully."
+                        )
+                        time.sleep(
+                            1
+                        )  # Adding sleep to allow any dynamic reactions to the click
+                        return
+            else:
+                # If direct label wasn't found or clicked, look for <p> containing the text, inside a label
+                p_element = driver.find_element(
+                    By.XPATH, f"//label/p[contains(., '{visible_text}')]"
+                )
+                if p_element:
+                    p_element.click()
+                    logging.info(
+                        f"Clicked on the <p> element with text '{visible_text}' successfully."
+                    )
+                    time.sleep(
+                        1
+                    )  # Adding sleep to allow any dynamic reactions to the click
+        except Exception as e:
+            logging.error(
+                f"Error clicking on the element with text '{visible_text}': {e}. Please double check if your text is correct in German."
+            )
 
     def click_element(self, driver, xpath):
         element = driver.find_element(By.XPATH, xpath)
@@ -116,44 +171,66 @@ class MacroTermin:
         select_element.select_by_visible_text(text)
         time.sleep(1)  # Provides a buffer between actions
 
-    def _send_slack_notification(self):
-        message = {"text": "Termin is Available!"}
-        response = requests.post(self.slack_webhook_url, json=message)
-        if response.status_code == 200:
-            logging.info("Slack notification sent successfully")
-        else:
-            logging.error("Failed to send Slack notification")
+    def _send_slack_notification(self, driver: webdriver.Chrome):
+        if self.slack_webhook_url is None:
+            # Don't use slack.
+            return True
+        try:
+            current_url = driver.current_url  # Get the current URL from the WebDriver
+            message_text = f"Termin is Available! Check it out here: {current_url}"  # Include the URL in the message text
+            message = {"text": message_text}
+            try:
+                response = requests.post(
+                    self.slack_webhook_url, json=message, timeout=5
+                )  # It's a good practice to set a timeout
+                response.raise_for_status()  # This will raise an HTTPError if the response was an error status
+            except (
+                requests.exceptions.RequestException
+            ) as e:  # This catches all exceptions raised by requests
+                logging.error(f"Failed to send Slack notification due to: {e}")
+        except Exception as e:
+            current_url = f"Not available url. Error note: {e}"
 
     def _play_sound(self):
-        pygame.mixer.init()
-        pygame.mixer.music.load(self.sound_file)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            pygame.time.wait(100)
+        try:
+            pygame.mixer.init()
+            pygame.mixer.music.load(self.sound_file)
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                pygame.time.wait(100)
+        except pygame.error as e:
+            print(f"Skipping sound due to error: {e}")
 
-    def handle_success(self):
+    def handle_success(self, driver):
         logging.info("!!!SUCCESS - do not close the window!!!!")
         while True:
             try:
-                self._send_slack_notification()
+                self._send_slack_notification(driver)
                 self._play_sound()
-                time.sleep(15)
-            except:
+                time.sleep(
+                    15
+                )  # This will wait for 15 seconds before continuing with the next iteration.
+            except KeyboardInterrupt:  # Catching the interrupt signal
+                logging.info("Keyboard interrupt received, exiting...")
+                break  # Exiting the loop
+            except (
+                Exception
+            ) as e:  # This catches all other exceptions and keeps the loop running
                 logging.info(
-                    "Error handling during SUCCESS to minimize the risk of closing the tab."
+                    f"Error encountered: {e} - during SUCCESS to minimize the risk of closing the tab."
                 )
 
     def run_once(self):
-        with WebDriver() as driver:
+        with WebDriver(self.mode) as driver:
             self.enter_start_page(driver)
             self.tick_off_agreement(driver)
             self.execute_form_actions(driver)
             time.sleep(self.wait_time)
 
             # retry submit
-            for _ in range(10):
+            for _ in range(16):
                 if not self.error_message in driver.page_source:
-                    self.handle_success()
+                    self.handle_success(driver)
                 logging.info("Retry submitting form")
                 driver.find_element(
                     By.ID, "applicationForm:managedForm:proceed"
@@ -171,5 +248,15 @@ class MacroTermin:
 
 
 if __name__ == "__main__":
-    bot = MacroTermin()
+    if len(sys.argv) == 1:
+        mode = "local"
+    elif len(sys.argv) == 2:
+        # Extract command-line arguments
+        mode = sys.argv[1]
+
+    else:
+        print("Usage: python3 macro_termin.py arg1")
+        sys.exit(1)
+
+    bot = MacroTermin(mode=mode)
     bot.run_loop()
