@@ -56,8 +56,11 @@ class WebDriver:
         return self.driver
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        logging.info("Close browser")
-        self.driver.quit()
+        if self.mode == "local":
+            logging.info("Close the window.")
+            self.driver.quit()
+        else:
+            logging.info("Exit. Selenium is not turned off.")
 
 
 class MacroTermin:
@@ -231,10 +234,16 @@ class MacroTermin:
             for _ in range(16):
                 if not self.error_message in driver.page_source:
                     self.handle_success(driver)
+                    time.sleep(self.wait_time*1000)
                 logging.info("Retry submitting form")
-                driver.find_element(
-                    By.ID, "applicationForm:managedForm:proceed"
-                ).click()
+                try:
+                    driver.find_element(
+                        By.ID, "applicationForm:managedForm:proceed"
+                    ).click()
+                except:
+                    logging.info("Submission failure.")
+                    
+                    
                 time.sleep(self.wait_time)
 
     def run_loop(self):
