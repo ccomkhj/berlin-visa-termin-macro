@@ -47,8 +47,7 @@ python3 macro_termin.py
 
 2. Running using docker
 ```
-docker compose build
-docker compose up -d
+sh docker_run.sh
 ```
 When you read the slack message or audio, go to the remote tab.
 [http://localhost:7900/?autoconnect=1&resize=scale&password=secret](http://localhost:7900/?autoconnect=1&resize=scale&password=secret)
